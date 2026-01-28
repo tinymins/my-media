@@ -55,8 +55,13 @@ COPY --from=builder /app/packages/types/dist ./packages/types/dist
 COPY --from=builder /app/packages/i18n/dist ./packages/i18n/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 
-# 只安装生产依赖
-RUN pnpm install --prod --frozen-lockfile --ignore-scripts
+# 复制 drizzle 配置和源码（用于迁移）
+COPY packages/server/drizzle.config.ts ./packages/server/
+COPY packages/server/src/db ./packages/server/src/db
+COPY packages/server/src/seed.ts ./packages/server/src/
+
+# 安装依赖（包含 devDependencies 用于迁移）
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # 设置工作目录
 WORKDIR /app/packages/server
