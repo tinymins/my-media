@@ -7,6 +7,7 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   settings: jsonb("settings"),
   role: text("role").notNull().default("user"), // superadmin, admin, user
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow()
 });
 

@@ -1,7 +1,7 @@
-import { eq, sql, ne, desc } from "drizzle-orm";
+import { eq, sql, ne, desc, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client";
-import { users, systemSettings } from "../../db/schema";
+import { users, systemSettings, sessions, workspaces, workspaceMembers, todos, testRequirements } from "../../db/schema";
 import type { UserRole } from "@acme/types";
 
 export class AdminService {
@@ -46,6 +46,7 @@ export class AdminService {
 				name: users.name,
 				email: users.email,
 				role: users.role,
+				lastLoginAt: users.lastLoginAt,
 				createdAt: users.createdAt
 			})
 			.from(users)
@@ -56,6 +57,7 @@ export class AdminService {
 			name: u.name,
 			email: u.email,
 			role: u.role as UserRole,
+			lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
 			createdAt: u.createdAt?.toISOString() ?? new Date().toISOString()
 		}));
 	}
@@ -94,6 +96,7 @@ export class AdminService {
 			name: updated.name,
 			email: updated.email,
 			role: updated.role as UserRole,
+			lastLoginAt: updated.lastLoginAt?.toISOString() ?? null,
 			createdAt: updated.createdAt?.toISOString() ?? new Date().toISOString()
 		};
 	}
@@ -160,7 +163,47 @@ export class AdminService {
 			});
 		}
 
-		await db.delete(users).where(eq(users.id, userId));
+		// 使用事务删除用户及关联数据
+		await db.transaction(async (tx) => {
+			// 1. 删除用户的 sessions
+			await tx.delete(sessions).where(eq(sessions.userId, userId));
+
+			// 2. 获取用户拥有的工作空间
+			const ownedWorkspaces = await tx
+				.select({ id: workspaces.id })
+				.from(workspaces)
+				.where(eq(workspaces.ownerId, userId));
+
+			const ownedWorkspaceIds = ownedWorkspaces.map((w) => w.id);
+
+			if (ownedWorkspaceIds.length > 0) {
+				// 3. 删除这些工作空间下的 todos
+				await tx.delete(todos).where(inArray(todos.workspaceId, ownedWorkspaceIds));
+
+				// 4. 删除这些工作空间下的 test_requirements
+				await tx.delete(testRequirements).where(inArray(testRequirements.workspaceId, ownedWorkspaceIds));
+
+				// 5. 删除这些工作空间的成员关系
+				await tx.delete(workspaceMembers).where(inArray(workspaceMembers.workspaceId, ownedWorkspaceIds));
+
+				// 6. 删除这些工作空间
+				await tx.delete(workspaces).where(inArray(workspaces.id, ownedWorkspaceIds));
+			}
+
+			// 7. 删除用户在其他工作空间的成员关系
+			await tx.delete(workspaceMembers).where(eq(workspaceMembers.userId, userId));
+
+			// 8. 清理用户创建的 todos 的 createdBy 引用
+			await tx.update(todos).set({ createdBy: null }).where(eq(todos.createdBy, userId));
+
+			// 9. 清理用户创建/负责的 test_requirements 的引用
+			await tx.update(testRequirements).set({ createdBy: null }).where(eq(testRequirements.createdBy, userId));
+			await tx.update(testRequirements).set({ assigneeId: null }).where(eq(testRequirements.assigneeId, userId));
+
+			// 10. 最后删除用户
+			await tx.delete(users).where(eq(users.id, userId));
+		});
+
 		return { success: true };
 	}
 }

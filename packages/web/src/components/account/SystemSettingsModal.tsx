@@ -117,6 +117,13 @@ export default function SystemSettingsModal({
       render: (role: UserRole) => getRoleTag(role)
     },
     {
+      title: t("systemSettings.lastLoginAt"),
+      dataIndex: "lastLoginAt",
+      key: "lastLoginAt",
+      render: (date: string | null) =>
+        date ? new Date(date).toLocaleString() : (lang === "zh" ? "从未登录" : "Never")
+    },
+    {
       title: t("systemSettings.userCreatedAt"),
       dataIndex: "createdAt",
       key: "createdAt",

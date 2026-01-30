@@ -37,6 +37,7 @@ export const AdminUserSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   role: UserRoleSchema,
+  lastLoginAt: z.string().nullable(),
   createdAt: z.string()
 });
 

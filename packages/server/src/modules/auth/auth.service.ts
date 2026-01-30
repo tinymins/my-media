@@ -66,6 +66,13 @@ export class AuthService {
 			.insert(sessions)
 			.values({ userId, expiresAt })
 			.returning({ id: sessions.id });
+
+		// 更新用户最后登录时间
+		await db
+			.update(users)
+			.set({ lastLoginAt: new Date() })
+			.where(eq(users.id, userId));
+
 		return session.id;
 	}
 

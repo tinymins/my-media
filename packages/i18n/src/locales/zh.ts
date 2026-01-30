@@ -463,6 +463,7 @@ export const zh = {
       allowRegistrationDesc: "关闭后，新用户将无法注册账号",
       userList: "用户列表",
       userRole: "角色",
+      lastLoginAt: "最近登录",
       userCreatedAt: "注册时间",
       userActions: "操作",
       roleUser: "普通用户",

@@ -138,7 +138,7 @@ ssh <server> "cd /mnt/docker/apps && docker compose logs --tail=50 server"
 
 | 邮箱 | 密码 | 角色 |
 |------|------|------|
-| admin@example.com | password | 管理员 |
+| admin@example.com | password | 超级管理员 |
 | user@example.com | password | 普通用户 |
 
 ## 更新部署

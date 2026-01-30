@@ -453,6 +453,7 @@ export const en: TranslationSchema = {
       allowRegistrationDesc: "When disabled, new users cannot register",
       userList: "User List",
       userRole: "Role",
+      lastLoginAt: "Last Login",
       userCreatedAt: "Registered",
       userActions: "Actions",
       roleUser: "User",
