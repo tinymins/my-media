@@ -1,5 +1,5 @@
 import { Avatar, Dropdown } from "antd";
-import { SettingOutlined, ToolOutlined, LogoutOutlined } from "@ant-design/icons";
+import { UserOutlined, ControlOutlined, LogoutOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import type { User } from "@acme/types";
 import type { Lang } from "../../lib/types";
@@ -45,16 +45,16 @@ export default function UserMenu({ user, lang, onOpenSettings, onOpenSystemSetti
     { type: "divider" },
     {
       key: "settings",
-      icon: <SettingOutlined style={{ color: "#1677ff" }} />,
-      label: lang === "zh" ? "设置" : "Settings"
+      icon: <UserOutlined style={{ color: "#1677ff" }} />,
+      label: lang === "zh" ? "账户设置" : "Account"
     },
-    // 管理员才显示系统设置
+    // 管理员才显示管理后台
     ...(isAdmin && onOpenSystemSettings
       ? [
           {
             key: "systemSettings",
-            icon: <ToolOutlined style={{ color: "#722ed1" }} />,
-            label: lang === "zh" ? "系统设置" : "System Settings"
+            icon: <ControlOutlined style={{ color: "#722ed1" }} />,
+            label: lang === "zh" ? "管理后台" : "Admin"
           } as const
         ]
       : []),
