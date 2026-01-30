@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { App as AntdApp } from "antd";
 import { TRPCClientError } from "@trpc/client";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryCache, MutationCache } from "@tanstack/react-query";
 import { useAuth, useThemeContext, useLang } from "./hooks";
 import type { User } from "@acme/types";
 import i18n from "./lib/i18n";
@@ -168,13 +168,15 @@ export default function App({ trpcClient }: { trpcClient: ReturnType<typeof trpc
   const queryClient = useMemo(
     () =>
       new QueryClient({
+        queryCache: new QueryCache({
+          onError: handleTrpcError
+        }),
+        mutationCache: new MutationCache({
+          onError: handleTrpcError
+        }),
         defaultOptions: {
           queries: {
-            retry: 1,
-            onError: handleTrpcError
-          },
-          mutations: {
-            onError: handleTrpcError
+            retry: 1
           }
         }
       }),
