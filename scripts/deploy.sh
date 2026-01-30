@@ -50,6 +50,32 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
+# 检查 .env 是否缺少 .env.example 中的变量（本地部署脚本配置）
+check_local_env_updates() {
+    if [ ! -f "$ENV_EXAMPLE" ]; then
+        return
+    fi
+
+    # 提取 .env.example 中的变量名（排除注释和空行）
+    local example_vars=$(grep -E '^[A-Z_]+=' "$ENV_EXAMPLE" | cut -d'=' -f1 | sort)
+    local env_vars=$(grep -E '^[A-Z_]+=' "$ENV_FILE" | cut -d'=' -f1 | sort)
+
+    # 找出 .env.example 中有但 .env 中没有的变量
+    local missing_vars=$(comm -23 <(echo "$example_vars") <(echo "$env_vars"))
+
+    if [ -n "$missing_vars" ]; then
+        log_warn "本地部署配置 scripts/.env 可能需要更新！"
+        log_warn "以下变量在 scripts/.env.example 中存在但 scripts/.env 中缺失:"
+        for var in $missing_vars; do
+            local default_value=$(grep "^${var}=" "$ENV_EXAMPLE" | cut -d'=' -f2-)
+            log_warn "  ${var}=${default_value}"
+        done
+        log_info ""
+    fi
+}
+
+check_local_env_updates
+
 # 加载环境变量
 set -a
 source "$ENV_FILE"
@@ -93,6 +119,7 @@ show_help() {
     echo "  -d, --deploy-only    仅在服务器部署（跳过构建和上传）"
     echo "  -m, --migrate        部署后执行数据库迁移"
     echo "  -s, --seed           部署后执行种子数据"
+    echo "  -e, --check-env      检查服务器 .env 配置是否需要更新"
     echo "  -r, --restart        仅重启服务"
     echo "  -l, --logs           查看服务日志"
     echo "  -h, --help           显示帮助"
@@ -104,6 +131,7 @@ show_help() {
     echo "  $0 -b                仅本地构建"
     echo "  $0 -m                仅执行数据库迁移（服务已部署时）"
     echo "  $0 -s                仅执行种子数据"
+    echo "  $0 -e                检查服务器 .env 配置"
     echo "  $0 -r                重启服务"
 }
 
@@ -196,6 +224,45 @@ run_migration() {
     log_success "数据库迁移完成"
 }
 
+# 检查服务器 .env 是否缺少新变量
+check_server_env_updates() {
+    local app_env_example="${PROJECT_ROOT}/.env.example"
+
+    if [ ! -f "$app_env_example" ]; then
+        return
+    fi
+
+    # 检查服务器上是否有 .env
+    if ! ssh "$SERVER" "test -f ${REMOTE_DIR}/.env" 2>/dev/null; then
+        return
+    fi
+
+    log_info "检查服务器 .env 配置..."
+
+    # 获取本地 .env.example 的变量名
+    local example_vars=$(grep -E '^[A-Z_]+=' "$app_env_example" | cut -d'=' -f1 | sort)
+
+    # 获取服务器 .env 的变量名
+    local server_vars=$(ssh "$SERVER" "grep -E '^[A-Z_]+=' ${REMOTE_DIR}/.env 2>/dev/null | cut -d'=' -f1 | sort")
+
+    # 找出缺失的变量
+    local missing_vars=$(comm -23 <(echo "$example_vars") <(echo "$server_vars"))
+
+    if [ -n "$missing_vars" ]; then
+        log_warn "服务器 .env 配置可能需要更新！"
+        log_warn "以下变量在 .env.example 中存在但服务器 .env 中缺失:"
+        for var in $missing_vars; do
+            local default_value=$(grep "^${var}=" "$app_env_example" | cut -d'=' -f2-)
+            log_warn "  ${var}=${default_value}"
+        done
+        log_info ""
+        log_info "请登录服务器更新 ${REMOTE_DIR}/.env"
+        log_info ""
+    else
+        log_success "服务器 .env 配置已是最新"
+    fi
+}
+
 # 执行种子数据
 run_seed() {
     log_info "执行种子数据..."
@@ -237,6 +304,7 @@ full_deploy() {
     upload_configs
     deploy_on_server
     cleanup_local
+    check_server_env_updates
 
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
@@ -257,6 +325,7 @@ DO_UPLOAD=false
 DO_DEPLOY=false
 DO_MIGRATE=false
 DO_SEED=false
+DO_CHECK_ENV=false
 DO_RESTART=false
 DO_LOGS=false
 DO_FULL=true
@@ -285,6 +354,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         -s|--seed)
             DO_SEED=true
+            DO_FULL=false
+            shift
+            ;;
+        -e|--check-env)
+            DO_CHECK_ENV=true
             DO_FULL=false
             shift
             ;;
@@ -356,6 +430,11 @@ fi
 
 if $DO_SEED; then
     run_seed
+fi
+
+# 检查服务器 env（如果指定或部署后自动检查）
+if $DO_CHECK_ENV; then
+    check_server_env_updates
 fi
 
 log_success "所有操作完成!"
