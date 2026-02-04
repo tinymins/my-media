@@ -10,6 +10,15 @@ import { TodoModule } from "./modules/todo";
 import { UserModule } from "./modules/user";
 import { WorkspaceModule } from "./modules/workspace";
 
+// 媒体管理系统模块
+import { PtSiteModule } from "./modules/pt-site";
+import { MediaServerModule } from "./modules/media-server";
+import { DownloadClientModule } from "./modules/download-client";
+import { NotificationModule } from "./modules/notification";
+import { MediaFolderModule } from "./modules/media-folder";
+import { SearchModule } from "./modules/search";
+import { SystemStatusModule } from "./modules/system-status";
+
 @Module({
   imports: [
     TrpcModule.forRoot({
@@ -21,7 +30,15 @@ import { WorkspaceModule } from "./modules/workspace";
     TestRequirementModule,
     TodoModule,
     UserModule,
-    WorkspaceModule
+    WorkspaceModule,
+    // 媒体管理系统模块
+    PtSiteModule,
+    MediaServerModule,
+    DownloadClientModule,
+    NotificationModule,
+    MediaFolderModule,
+    SearchModule,
+    SystemStatusModule
   ],
   controllers: [AppController]
 })

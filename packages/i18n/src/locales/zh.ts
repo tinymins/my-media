@@ -511,6 +511,198 @@ export const zh = {
       deleteInvitation: "删除",
       expiresInHours: "有效期（小时）",
       noExpiration: "不设置过期时间"
+    },
+    // 媒体管理
+    media: {
+      // 导航
+      nav: {
+        search: "聚合搜索",
+        downloads: "下载管理",
+        settings: "系统设置",
+        ptSites: "PT站点",
+        mediaServers: "媒体服务器",
+        downloadClients: "下载器",
+        notifications: "通知渠道"
+      },
+      // 搜索页
+      search: {
+        title: "聚合搜索",
+        placeholder: "输入电影、剧集名称搜索...",
+        searchButton: "搜索",
+        description: "同时搜索 PT站点、媒体库 和 TMDB 数据库",
+        tabTorrents: "PT站点",
+        tabMedia: "媒体库",
+        tabTmdb: "TMDB",
+        noResults: "暂无搜索结果",
+        download: "下载",
+        play: "播放",
+        searchResource: "搜索资源",
+        free: "免费",
+        uploading: "上传",
+        seeders: "做种",
+        leechers: "下载",
+        grabs: "完成"
+      },
+      // 下载管理
+      downloads: {
+        title: "下载管理",
+        refresh: "刷新",
+        pause: "暂停",
+        resume: "继续",
+        delete: "删除",
+        deleteConfirm: "删除种子",
+        deleteWithFiles: "是否同时删除文件？",
+        deleteFilesBtn: "删除文件",
+        deleteTaskOnly: "仅删除任务",
+        batchDelete: "批量删除",
+        batchDeleteConfirm: "确定删除选中的 {{count}} 个任务？",
+        noTasks: "暂无下载任务",
+        totalTasks: "共 {{total}} 个任务",
+        // 列表字段
+        name: "名称",
+        size: "大小",
+        progress: "进度",
+        speed: "速度",
+        ratio: "分享率",
+        actions: "操作",
+        remaining: "剩余",
+        // 详情
+        detail: "详细信息",
+        contentType: "内容类型",
+        torrentName: "种子名称",
+        savePath: "保存路径",
+        fileSize: "文件尺寸",
+        uploaded: "已经上传",
+        shareRatio: "分享比率",
+        seedingTime: "做种时间",
+        tracker: "Tracker",
+        // 状态
+        states: {
+          downloading: "下载中",
+          seeding: "做种中",
+          pausedDL: "暂停下载",
+          pausedUP: "暂停上传",
+          stalledDL: "等待下载",
+          stalledUP: "等待上传",
+          checkingDL: "校验中",
+          checkingUP: "校验中",
+          queuedDL: "排队下载",
+          queuedUP: "排队上传",
+          error: "错误",
+          missingFiles: "文件丢失",
+          uploading: "上传中",
+          completed: "已完成",
+          unknown: "未知"
+        },
+        // 媒体类型
+        mediaTypes: {
+          movie: "电影",
+          tv: "剧集"
+        }
+      },
+      // PT站点设置
+      ptSites: {
+        title: "PT站点管理",
+        add: "添加站点",
+        edit: "编辑站点",
+        name: "站点名称",
+        url: "站点地址",
+        authType: "认证方式",
+        apiKey: "API Key",
+        cookie: "Cookie",
+        passkey: "Passkey",
+        enabled: "已启用",
+        disabled: "已禁用",
+        testConnection: "测试连接",
+        deleteConfirm: "确定删除该站点？",
+        authTypes: {
+          cookie: "Cookie",
+          apikey: "API Key",
+          passkey: "Passkey"
+        }
+      },
+      // 媒体服务器设置
+      mediaServers: {
+        title: "媒体服务器管理",
+        add: "添加服务器",
+        edit: "编辑服务器",
+        name: "名称",
+        type: "类型",
+        url: "服务器地址",
+        apiKey: "API Key",
+        username: "用户名",
+        password: "密码",
+        enabled: "已启用",
+        disabled: "已禁用",
+        primary: "主服务器",
+        setPrimary: "设为主服务器",
+        testConnection: "测试连接",
+        deleteConfirm: "确定删除该服务器？"
+      },
+      // 下载器设置
+      downloadClients: {
+        title: "下载器管理",
+        add: "添加下载器",
+        edit: "编辑下载器",
+        name: "名称",
+        type: "类型",
+        url: "服务器地址",
+        username: "用户名",
+        password: "密码",
+        enabled: "已启用",
+        disabled: "已禁用",
+        default: "默认下载器",
+        setDefault: "设为默认",
+        testConnection: "测试连接",
+        deleteConfirm: "确定删除该下载器？"
+      },
+      // 通知渠道设置
+      notifications: {
+        title: "通知渠道管理",
+        add: "添加渠道",
+        edit: "编辑渠道",
+        name: "名称",
+        type: "类型",
+        enabled: "已启用",
+        disabled: "已禁用",
+        events: "订阅事件",
+        testSend: "发送测试",
+        deleteConfirm: "确定删除该渠道？",
+        types: {
+          telegram: "Telegram",
+          bark: "Bark",
+          webhook: "Webhook"
+        },
+        eventTypes: {
+          downloadStart: "下载开始",
+          downloadComplete: "下载完成",
+          downloadFailed: "下载失败",
+          mediaAdded: "媒体入库"
+        },
+        // Telegram 配置
+        botToken: "Bot Token",
+        chatId: "Chat ID",
+        // Bark 配置
+        serverUrl: "服务器地址",
+        deviceKey: "Device Key",
+        // Webhook 配置
+        webhookUrl: "Webhook URL",
+        headers: "请求头"
+      },
+      // 通用
+      common: {
+        save: "保存",
+        cancel: "取消",
+        delete: "删除",
+        edit: "编辑",
+        enable: "启用",
+        disable: "禁用",
+        test: "测试",
+        success: "成功",
+        failed: "失败",
+        loading: "加载中...",
+        noData: "暂无数据"
+      }
     }
   }
 };

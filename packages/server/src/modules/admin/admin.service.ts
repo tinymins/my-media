@@ -26,7 +26,7 @@ export class AdminService {
 	}
 
 	/** 更新系统设置 */
-	async updateSystemSettings(updates: { allowRegistration?: boolean }) {
+	async updateSystemSettings(updates: { allowRegistration?: boolean; tmdbApiKey?: string | null }) {
 		const settings = await this.getSystemSettings();
 		const [updated] = await db
 			.update(systemSettings)

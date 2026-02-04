@@ -163,15 +163,15 @@ function WorkspaceSwitcher({
 // 菜单路由后缀（相对于 /dashboard/:workspace）
 const menuRouteSuffixes = [
   "", // 工作台
-  "/test-requirements", // 测试需求（改名自需求中心）
-  "/test-plan",
-  "/test-design",
-  "/execution",
-  "/defects",
-  "/reports",
-  "/automation",
-  "/settings",
-  "/todulist", // 新增 TodoList 页面
+  "/search", // 聚合搜索
+  "/downloads", // 下载管理
+  "/system-status", // 系统状态
+  "/settings/pt-sites", // PT站点
+  "/settings/media-servers", // 媒体服务器
+  "/settings/download-clients", // 下载器
+  "/settings/notifications", // 通知渠道
+  "/settings/tmdb", // TMDB 设置
+  "/settings", // 系统设置
 ];
 
 export default function DashboardLayout({
@@ -267,9 +267,29 @@ export default function DashboardLayout({
     prevWorkspaceRef.current = workspace;
   }, [workspace]);
 
-  const menuItems = [
-    ...(t("dashboard.menu", { returnObjects: true }) as string[]),
-    lang === "zh" ? "📋 待办清单" : "📋 Todo List",
+  // 媒体管理菜单项
+  const menuItems = lang === "zh" ? [
+    "🏠 工作台",
+    "🔍 聚合搜索",
+    "⬇️ 下载管理",
+    "📊 系统状态",
+    "📡 PT站点",
+    "🖥️ 媒体服务器",
+    "⚙️ 下载器",
+    "🔔 通知渠道",
+    "🎬 TMDB",
+    "⚙️ 系统设置",
+  ] : [
+    "🏠 Dashboard",
+    "🔍 Search",
+    "⬇️ Downloads",
+    "📊 System Status",
+    "📡 PT Sites",
+    "🖥️ Media Servers",
+    "⚙️ Download Clients",
+    "🔔 Notifications",
+    "🎬 TMDB",
+    "⚙️ Settings",
   ];
 
   const menuItemConfigs = menuItems.map((label, index) => ({

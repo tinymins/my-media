@@ -29,6 +29,16 @@ import {
   NotFoundPage,
   DashboardNotFoundPage,
   UnauthorizedPage,
+  // 媒体管理设置页面
+  PtSitesPage,
+  MediaServersPage,
+  DownloadClientsPage,
+  NotificationsPage,
+  TmdbPage,
+  // 媒体管理功能页面
+  SearchPage,
+  DownloadsPage,
+  SystemStatusPage,
 } from "./pages";
 
 // Inner component that uses App.useApp() for message API
@@ -100,6 +110,16 @@ function AppContent() {
               <Route path="automation" element={<AutomationPage lang={lang} />} />
               <Route path="settings" element={<SettingsPage lang={lang} />} />
               <Route path="todulist" element={<TodoListPage lang={lang} />} />
+              {/* 媒体管理功能路由 */}
+              <Route path="search" element={<SearchPage lang={lang} />} />
+              <Route path="downloads" element={<DownloadsPage lang={lang} />} />
+              <Route path="system-status" element={<SystemStatusPage lang={lang} />} />
+              {/* 媒体管理设置路由 */}
+              <Route path="settings/pt-sites" element={<PtSitesPage />} />
+              <Route path="settings/media-servers" element={<MediaServersPage />} />
+              <Route path="settings/download-clients" element={<DownloadClientsPage />} />
+              <Route path="settings/notifications" element={<NotificationsPage />} />
+              <Route path="settings/tmdb" element={<TmdbPage />} />
               <Route path="*" element={<DashboardNotFoundPage />} />
             </Route>
           </Route>

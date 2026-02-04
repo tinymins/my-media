@@ -501,6 +501,198 @@ export const en: TranslationSchema = {
       deleteInvitation: "Delete",
       expiresInHours: "Expires in (hours)",
       noExpiration: "No expiration"
+    },
+    // Media Management
+    media: {
+      // Navigation
+      nav: {
+        search: "Search",
+        downloads: "Downloads",
+        settings: "Settings",
+        ptSites: "PT Sites",
+        mediaServers: "Media Servers",
+        downloadClients: "Download Clients",
+        notifications: "Notifications"
+      },
+      // Search Page
+      search: {
+        title: "Aggregated Search",
+        placeholder: "Search for movies, TV shows...",
+        searchButton: "Search",
+        description: "Search across PT sites, media libraries and TMDB",
+        tabTorrents: "PT Sites",
+        tabMedia: "Media Library",
+        tabTmdb: "TMDB",
+        noResults: "No results found",
+        download: "Download",
+        play: "Play",
+        searchResource: "Search Resources",
+        free: "Free",
+        uploading: "Upload",
+        seeders: "Seeders",
+        leechers: "Leechers",
+        grabs: "Grabs"
+      },
+      // Downloads Management
+      downloads: {
+        title: "Downloads",
+        refresh: "Refresh",
+        pause: "Pause",
+        resume: "Resume",
+        delete: "Delete",
+        deleteConfirm: "Delete Torrent",
+        deleteWithFiles: "Delete files as well?",
+        deleteFilesBtn: "Delete Files",
+        deleteTaskOnly: "Task Only",
+        batchDelete: "Batch Delete",
+        batchDeleteConfirm: "Delete {{count}} selected tasks?",
+        noTasks: "No download tasks",
+        totalTasks: "{{total}} tasks total",
+        // List fields
+        name: "Name",
+        size: "Size",
+        progress: "Progress",
+        speed: "Speed",
+        ratio: "Ratio",
+        actions: "Actions",
+        remaining: "Remaining",
+        // Detail
+        detail: "Details",
+        contentType: "Content Type",
+        torrentName: "Torrent Name",
+        savePath: "Save Path",
+        fileSize: "File Size",
+        uploaded: "Uploaded",
+        shareRatio: "Share Ratio",
+        seedingTime: "Seeding Time",
+        tracker: "Tracker",
+        // States
+        states: {
+          downloading: "Downloading",
+          seeding: "Seeding",
+          pausedDL: "Paused (DL)",
+          pausedUP: "Paused (UP)",
+          stalledDL: "Stalled (DL)",
+          stalledUP: "Stalled (UP)",
+          checkingDL: "Checking",
+          checkingUP: "Checking",
+          queuedDL: "Queued (DL)",
+          queuedUP: "Queued (UP)",
+          error: "Error",
+          missingFiles: "Missing Files",
+          uploading: "Uploading",
+          completed: "Completed",
+          unknown: "Unknown"
+        },
+        // Media types
+        mediaTypes: {
+          movie: "Movie",
+          tv: "TV Show"
+        }
+      },
+      // PT Sites Settings
+      ptSites: {
+        title: "PT Sites",
+        add: "Add Site",
+        edit: "Edit Site",
+        name: "Site Name",
+        url: "Site URL",
+        authType: "Auth Type",
+        apiKey: "API Key",
+        cookie: "Cookie",
+        passkey: "Passkey",
+        enabled: "Enabled",
+        disabled: "Disabled",
+        testConnection: "Test Connection",
+        deleteConfirm: "Delete this site?",
+        authTypes: {
+          cookie: "Cookie",
+          apikey: "API Key",
+          passkey: "Passkey"
+        }
+      },
+      // Media Servers Settings
+      mediaServers: {
+        title: "Media Servers",
+        add: "Add Server",
+        edit: "Edit Server",
+        name: "Name",
+        type: "Type",
+        url: "Server URL",
+        apiKey: "API Key",
+        username: "Username",
+        password: "Password",
+        enabled: "Enabled",
+        disabled: "Disabled",
+        primary: "Primary",
+        setPrimary: "Set as Primary",
+        testConnection: "Test Connection",
+        deleteConfirm: "Delete this server?"
+      },
+      // Download Clients Settings
+      downloadClients: {
+        title: "Download Clients",
+        add: "Add Client",
+        edit: "Edit Client",
+        name: "Name",
+        type: "Type",
+        url: "Server URL",
+        username: "Username",
+        password: "Password",
+        enabled: "Enabled",
+        disabled: "Disabled",
+        default: "Default",
+        setDefault: "Set as Default",
+        testConnection: "Test Connection",
+        deleteConfirm: "Delete this client?"
+      },
+      // Notifications Settings
+      notifications: {
+        title: "Notification Channels",
+        add: "Add Channel",
+        edit: "Edit Channel",
+        name: "Name",
+        type: "Type",
+        enabled: "Enabled",
+        disabled: "Disabled",
+        events: "Events",
+        testSend: "Send Test",
+        deleteConfirm: "Delete this channel?",
+        types: {
+          telegram: "Telegram",
+          bark: "Bark",
+          webhook: "Webhook"
+        },
+        eventTypes: {
+          downloadStart: "Download Started",
+          downloadComplete: "Download Complete",
+          downloadFailed: "Download Failed",
+          mediaAdded: "Media Added"
+        },
+        // Telegram config
+        botToken: "Bot Token",
+        chatId: "Chat ID",
+        // Bark config
+        serverUrl: "Server URL",
+        deviceKey: "Device Key",
+        // Webhook config
+        webhookUrl: "Webhook URL",
+        headers: "Headers"
+      },
+      // Common
+      common: {
+        save: "Save",
+        cancel: "Cancel",
+        delete: "Delete",
+        edit: "Edit",
+        enable: "Enable",
+        disable: "Disable",
+        test: "Test",
+        success: "Success",
+        failed: "Failed",
+        loading: "Loading...",
+        noData: "No Data"
+      }
     }
   }
 };
