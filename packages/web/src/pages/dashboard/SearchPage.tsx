@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Button, Card, Col, Empty, Image, Input, Row, Space, Spin, Tabs, Tag, Typography, message } from "antd";
-import { DownloadOutlined, PlayCircleOutlined, SearchOutlined, StarOutlined } from "@ant-design/icons";
+import { useState, useMemo } from "react";
+import { Button, Card, Col, Empty, Image, Input, Row, Select, Space, Spin, Tabs, Tag, Typography, message, Tooltip, Dropdown, Checkbox } from "antd";
+import { DownloadOutlined, PlayCircleOutlined, SearchOutlined, StarOutlined, FilterOutlined, ArrowUpOutlined, ArrowDownOutlined, CheckCircleOutlined, ClockCircleOutlined, LinkOutlined } from "@ant-design/icons";
 import type { Lang } from "../../lib/types";
 import type { PtTorrent, MediaItem, TmdbMedia } from "@acme/types";
 import { trpc } from "../../lib/trpc";
@@ -12,77 +12,211 @@ type SearchPageProps = {
   lang: Lang;
 };
 
-// 格式化文件大小
-const formatSize = (bytes: number): string => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+// 筛选选项
+const RESOLUTION_OPTIONS = [
+  { label: "全部", value: "" },
+  { label: "4K/2160p", value: "4K,2160p" },
+  { label: "1080p", value: "1080p" },
+  { label: "720p", value: "720p" },
+  { label: "SD", value: "SD" },
+];
+
+const VIDEO_CODEC_OPTIONS = [
+  { label: "全部", value: "" },
+  { label: "H.265/HEVC", value: "H.265" },
+  { label: "H.264/AVC", value: "H.264" },
+  { label: "AV1", value: "AV1" },
+];
+
+const DISCOUNT_OPTIONS = [
+  { label: "全部", value: "" },
+  { label: "免费", value: "free" },
+  { label: "50%优惠", value: "half" },
+  { label: "2x上传", value: "2x" },
+];
+
+// 格式化时间
+const formatDate = (dateStr?: string): string => {
+  if (!dateStr) return "";
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return "今天";
+    if (days === 1) return "昨天";
+    if (days < 7) return `${days}天前`;
+    if (days < 30) return `${Math.floor(days / 7)}周前`;
+    if (days < 365) return `${Math.floor(days / 30)}月前`;
+    return `${Math.floor(days / 365)}年前`;
+  } catch {
+    return dateStr;
+  }
 };
 
-// PT 种子卡片
-const TorrentCard = ({ torrent, onDownload }: { torrent: PtTorrent; onDownload: (t: PtTorrent) => void }) => (
-  <Card
-    size="small"
-    className="mb-3"
-    hoverable
-    actions={[
-      <Button
-        key="download"
-        type="primary"
-        size="small"
-        icon={<DownloadOutlined />}
-        onClick={() => onDownload(torrent)}
-      >
-        下载
-      </Button>
-    ]}
-  >
-    <div className="flex gap-3">
-      {torrent.posterUrl && (
-        <Image
-          src={torrent.posterUrl}
-          alt={torrent.title}
-          width={80}
-          height={120}
-          className="object-cover rounded"
-          fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-        />
-      )}
-      <div className="flex-1 min-w-0">
-        <Text strong ellipsis className="block">
-          {torrent.title}
-        </Text>
-        {torrent.subtitle && (
-          <Text type="secondary" ellipsis className="block text-xs">
-            {torrent.subtitle}
-          </Text>
-        )}
-        <div className="mt-2 flex flex-wrap gap-1">
-          <Tag color="blue">{torrent.siteName}</Tag>
-          <Tag>{torrent.size}</Tag>
-          {torrent.downloadVolumeFactor === 0 && <Tag color="green">免费</Tag>}
-          {torrent.uploadVolumeFactor && torrent.uploadVolumeFactor > 1 && (
-            <Tag color="orange">{torrent.uploadVolumeFactor}x 上传</Tag>
-          )}
-        </div>
-        <div className="mt-1 text-xs text-gray-500">
-          <Space split="·">
-            <span>↑ {torrent.seeders}</span>
-            <span>↓ {torrent.leechers}</span>
-            {torrent.grabs && <span>✓ {torrent.grabs}</span>}
-          </Space>
+// 获取折扣标签
+const getDiscountTags = (torrent: PtTorrent) => {
+  const tags: React.ReactNode[] = [];
+
+  if (torrent.downloadVolumeFactor === 0) {
+    tags.push(<Tag key="free" color="green" className="font-bold">免费</Tag>);
+  } else if (torrent.downloadVolumeFactor === 0.5) {
+    tags.push(<Tag key="half" color="cyan">50%</Tag>);
+  } else if (torrent.downloadVolumeFactor === 0.3) {
+    tags.push(<Tag key="70" color="blue">30%</Tag>);
+  }
+
+  if (torrent.uploadVolumeFactor && torrent.uploadVolumeFactor > 1) {
+    tags.push(<Tag key="upload" color="orange">{torrent.uploadVolumeFactor}x↑</Tag>);
+  }
+
+  return tags;
+};
+
+// 获取媒体信息标签
+const getMediaTags = (torrent: PtTorrent) => {
+  const tags: React.ReactNode[] = [];
+
+  if (torrent.resolution) {
+    const color = torrent.resolution.includes("4K") || torrent.resolution === "2160p" ? "gold" : "default";
+    tags.push(<Tag key="res" color={color}>{torrent.resolution}</Tag>);
+  }
+
+  if (torrent.videoCodec) {
+    tags.push(<Tag key="video">{torrent.videoCodec}</Tag>);
+  }
+
+  if (torrent.audioCodec) {
+    tags.push(<Tag key="audio">{torrent.audioCodec}</Tag>);
+  }
+
+  return tags;
+};
+
+// PT 种子卡片 - 增强版
+const TorrentCard = ({ torrent, onDownload }: { torrent: PtTorrent; onDownload: (t: PtTorrent) => void }) => {
+  const discountTags = getDiscountTags(torrent);
+  const mediaTags = getMediaTags(torrent);
+
+  return (
+    <Card size="small" className="mb-2 hover:shadow-md transition-shadow" hoverable>
+      <div className="flex gap-3">
+        {/* 封面图 */}
+        {torrent.posterUrl ? (
+          <div className="flex-shrink-0">
+            <Image
+              src={torrent.posterUrl}
+              alt={torrent.title}
+              width={60}
+              height={85}
+              className="object-cover rounded"
+              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+              preview={false}
+            />
+          </div>
+        ) : null}
+
+        {/* 主要内容 */}
+        <div className="flex-1 min-w-0">
+          {/* 标题行 */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <Tooltip title={torrent.title}>
+                <Text strong className="block text-sm leading-tight line-clamp-1">
+                  {torrent.title}
+                </Text>
+              </Tooltip>
+              {torrent.subtitle && (
+                <Tooltip title={torrent.subtitle}>
+                  <Text type="secondary" className="block text-xs mt-0.5 line-clamp-1">
+                    {torrent.subtitle}
+                  </Text>
+                </Tooltip>
+              )}
+            </div>
+
+            {/* 下载按钮 */}
+            <Button
+              type="primary"
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => onDownload(torrent)}
+            />
+          </div>
+
+          {/* 标签行：折扣 + 媒体信息 */}
+          <div className="mt-2 flex flex-wrap gap-1">
+            {discountTags}
+            {mediaTags}
+          </div>
+
+          {/* 底部信息行 */}
+          <div className="mt-2 flex items-center justify-between text-xs">
+            {/* 左侧：站点、大小 */}
+            <Space size="small" className="text-gray-500">
+              <Tag color="blue" className="mr-0">{torrent.siteName}</Tag>
+              <span>{torrent.size}</span>
+              {torrent.uploadDate && (
+                <Tooltip title={torrent.uploadDate}>
+                  <span className="flex items-center gap-0.5">
+                    <ClockCircleOutlined /> {formatDate(torrent.uploadDate)}
+                  </span>
+                </Tooltip>
+              )}
+            </Space>
+
+            {/* 右侧：做种/下载/完成数 + 评分 */}
+            <Space size="small" className="text-gray-500">
+              <Tooltip title="做种">
+                <span className="text-green-600 flex items-center gap-0.5">
+                  <ArrowUpOutlined /> {torrent.seeders}
+                </span>
+              </Tooltip>
+              <Tooltip title="下载">
+                <span className="text-red-500 flex items-center gap-0.5">
+                  <ArrowDownOutlined /> {torrent.leechers}
+                </span>
+              </Tooltip>
+              {torrent.grabs !== undefined && (
+                <Tooltip title="完成">
+                  <span className="flex items-center gap-0.5">
+                    <CheckCircleOutlined /> {torrent.grabs}
+                  </span>
+                </Tooltip>
+              )}
+              {torrent.imdbRating && (
+                <Tooltip title={`IMDb: ${torrent.imdbRating}`}>
+                  <a href={`https://www.imdb.com/title/${torrent.imdbId}`} target="_blank" rel="noreferrer" className="flex items-center gap-0.5 text-yellow-600" onClick={e => e.stopPropagation()}>
+                    <StarOutlined /> {torrent.imdbRating}
+                  </a>
+                </Tooltip>
+              )}
+              {torrent.doubanRating && (
+                <Tooltip title={`豆瓣: ${torrent.doubanRating}`}>
+                  <a href={`https://movie.douban.com/subject/${torrent.doubanId}`} target="_blank" rel="noreferrer" className="text-green-700" onClick={e => e.stopPropagation()}>
+                    豆{torrent.doubanRating}
+                  </a>
+                </Tooltip>
+              )}
+              {torrent.detailsUrl && (
+                <Tooltip title="查看详情">
+                  <a href={torrent.detailsUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>
+                    <LinkOutlined />
+                  </a>
+                </Tooltip>
+              )}
+            </Space>
+          </div>
         </div>
       </div>
-    </div>
-  </Card>
-);
+    </Card>
+  );
+};
 
 // 媒体库卡片
 const MediaCard = ({ item }: { item: MediaItem }) => (
   <Card
     size="small"
-    className="mb-3"
     hoverable
     cover={
       item.posterUrl && (
@@ -110,8 +244,8 @@ const MediaCard = ({ item }: { item: MediaItem }) => (
       description={
         <Space className="text-xs">
           {item.year && <span>{item.year}</span>}
-          {item.resolution && <Tag size="small">{item.resolution}</Tag>}
-          {item.videoCodec && <Tag size="small">{item.videoCodec}</Tag>}
+          {item.resolution && <Tag>{item.resolution}</Tag>}
+          {item.videoCodec && <Tag>{item.videoCodec}</Tag>}
         </Space>
       }
     />
@@ -122,7 +256,6 @@ const MediaCard = ({ item }: { item: MediaItem }) => (
 const TmdbCard = ({ media, onSearch }: { media: TmdbMedia; onSearch: (keyword: string) => void }) => (
   <Card
     size="small"
-    className="mb-3"
     hoverable
     cover={
       media.posterPath && (
@@ -176,6 +309,14 @@ export default function SearchPage({ lang }: SearchPageProps) {
   const [keyword, setKeyword] = useState("");
   const [activeTab, setActiveTab] = useState("torrents");
 
+  // 筛选状态
+  const [filters, setFilters] = useState({
+    resolution: "",
+    videoCodec: "",
+    discount: "",
+    freeOnly: false,
+  });
+
   // 搜索结果状态
   const [ptResults, setPtResults] = useState<PtTorrent[]>([]);
   const [mediaResults, setMediaResults] = useState<MediaItem[]>([]);
@@ -187,13 +328,47 @@ export default function SearchPage({ lang }: SearchPageProps) {
       setPtResults(result.ptResults);
       setMediaResults(result.mediaResults);
       setTmdbResults(result.tmdbResults);
-      console.log("[SearchPage] Search results:", result);
     },
-    onError: (error) => {
-      console.error("[SearchPage] Search failed:", error);
+    onError: () => {
       message.error("搜索失败，请稍后重试");
     }
   });
+
+  // 筛选后的结果
+  const filteredPtResults = useMemo(() => {
+    return ptResults.filter(t => {
+      // 分辨率筛选
+      if (filters.resolution) {
+        const resValues = filters.resolution.split(",");
+        if (!resValues.some(v => t.resolution?.includes(v))) {
+          return false;
+        }
+      }
+
+      // 视频编码筛选
+      if (filters.videoCodec && !t.videoCodec?.includes(filters.videoCodec)) {
+        return false;
+      }
+
+      // 折扣筛选
+      if (filters.discount === "free" && t.downloadVolumeFactor !== 0) {
+        return false;
+      }
+      if (filters.discount === "half" && t.downloadVolumeFactor !== 0.5) {
+        return false;
+      }
+      if (filters.discount === "2x" && (!t.uploadVolumeFactor || t.uploadVolumeFactor < 2)) {
+        return false;
+      }
+
+      // 仅免费
+      if (filters.freeOnly && t.downloadVolumeFactor !== 0) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [ptResults, filters]);
 
   const handleSearch = async (value: string) => {
     if (!value.trim()) return;
@@ -203,7 +378,73 @@ export default function SearchPage({ lang }: SearchPageProps) {
 
   const handleDownload = (torrent: PtTorrent) => {
     // TODO: 调用下载 API
-    console.log("Download:", torrent);
+    message.info(`正在添加下载: ${torrent.title}`);
+  };
+
+  // 筛选器下拉菜单
+  const filterMenu = {
+    items: [
+      {
+        key: "resolution",
+        label: (
+          <div className="py-1">
+            <div className="text-xs text-gray-500 mb-1">分辨率</div>
+            <Select
+              size="small"
+              value={filters.resolution}
+              onChange={v => setFilters(f => ({ ...f, resolution: v }))}
+              options={RESOLUTION_OPTIONS}
+              className="w-32"
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+        ),
+      },
+      {
+        key: "videoCodec",
+        label: (
+          <div className="py-1">
+            <div className="text-xs text-gray-500 mb-1">视频编码</div>
+            <Select
+              size="small"
+              value={filters.videoCodec}
+              onChange={v => setFilters(f => ({ ...f, videoCodec: v }))}
+              options={VIDEO_CODEC_OPTIONS}
+              className="w-32"
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+        ),
+      },
+      {
+        key: "discount",
+        label: (
+          <div className="py-1">
+            <div className="text-xs text-gray-500 mb-1">促销</div>
+            <Select
+              size="small"
+              value={filters.discount}
+              onChange={v => setFilters(f => ({ ...f, discount: v }))}
+              options={DISCOUNT_OPTIONS}
+              className="w-32"
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+        ),
+      },
+      { type: "divider" as const },
+      {
+        key: "freeOnly",
+        label: (
+          <Checkbox
+            checked={filters.freeOnly}
+            onChange={e => setFilters(f => ({ ...f, freeOnly: e.target.checked }))}
+          >
+            仅显示免费
+          </Checkbox>
+        ),
+      },
+    ],
   };
 
   const renderContent = () => {
@@ -228,22 +469,36 @@ export default function SearchPage({ lang }: SearchPageProps) {
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
+        tabBarExtraContent={
+          activeTab === "torrents" && ptResults.length > 0 ? (
+            <Space>
+              {filters.freeOnly && <Tag color="green" closable onClose={() => setFilters(f => ({ ...f, freeOnly: false }))}>仅免费</Tag>}
+              {filters.resolution && <Tag closable onClose={() => setFilters(f => ({ ...f, resolution: "" }))}>{RESOLUTION_OPTIONS.find(o => o.value === filters.resolution)?.label}</Tag>}
+              {filters.videoCodec && <Tag closable onClose={() => setFilters(f => ({ ...f, videoCodec: "" }))}>{filters.videoCodec}</Tag>}
+              <Dropdown menu={filterMenu} trigger={["click"]} placement="bottomRight">
+                <Button icon={<FilterOutlined />} size="small">
+                  筛选
+                </Button>
+              </Dropdown>
+            </Space>
+          ) : null
+        }
         items={[
           {
             key: "torrents",
-            label: `PT站点 (${ptResults.length})`,
-            children: ptResults.length > 0 ? (
-              <div className="grid gap-3">
-                {ptResults.map((torrent) => (
+            label: `PT站点 (${filteredPtResults.length}/${ptResults.length})`,
+            children: filteredPtResults.length > 0 ? (
+              <div className="space-y-2">
+                {filteredPtResults.map((torrent) => (
                   <TorrentCard
-                    key={torrent.id}
+                    key={`${torrent.siteId}-${torrent.id}`}
                     torrent={torrent}
                     onDownload={handleDownload}
                   />
                 ))}
               </div>
             ) : (
-              <Empty description="暂无种子结果" />
+              <Empty description={ptResults.length > 0 ? "没有符合筛选条件的结果" : "暂无种子结果"} />
             )
           },
           {
@@ -282,8 +537,8 @@ export default function SearchPage({ lang }: SearchPageProps) {
   };
 
   return (
-    <div className="p-6">
-      <Card className="mb-6">
+    <div className="p-4">
+      <Card className="mb-4">
         <div className="max-w-2xl mx-auto">
           <Title level={4} className="text-center mb-4">
             聚合搜索

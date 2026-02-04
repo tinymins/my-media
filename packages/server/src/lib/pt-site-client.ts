@@ -108,13 +108,27 @@ export interface PtSiteUserInfo {
 export interface PtSearchResult {
   id: string;
   title: string;
+  subtitle?: string;
   size: string;
+  sizeBytes?: number;
   seeders: number;
   leechers: number;
+  grabs?: number;
   category?: string;
   uploadTime?: string;
   downloadUrl?: string;
   detailUrl?: string;
+  posterUrl?: string;
+  imdbUrl?: string;
+  imdbRating?: string;
+  doubanUrl?: string;
+  doubanRating?: string;
+  discount?: string; // FREE, PERCENT_50, PERCENT_70 等
+  discountEndTime?: string;
+  videoCodec?: string;
+  audioCodec?: string;
+  resolution?: string;
+  source?: string;
 }
 
 // ============ 客户端实现 ============
@@ -277,6 +291,11 @@ export class PtSiteClient {
 
       console.log(`[PtSiteClient] Found ${list.length} torrents`);
 
+      // 打印第一条结果的完整数据用于调试
+      if (list.length > 0) {
+        console.log(`[PtSiteClient] Sample torrent data:`, JSON.stringify(list[0], null, 2));
+      }
+
       // 映射结果
       return list.map((item: Record<string, unknown>) => this.mapSearchResult(item, searchConfig.fields));
     } catch (error) {
@@ -298,17 +317,32 @@ export class PtSiteClient {
     };
 
     const size = getValue(fields.size);
+    const sizeNum = typeof size === "number" ? size : (typeof size === "string" ? parseInt(size, 10) : 0);
 
     return {
       id: String(getValue(fields.id) || ""),
       title: String(getValue(fields.title) || ""),
+      subtitle: getValue(fields.subtitle) ? String(getValue(fields.subtitle)) : undefined,
       size: this.formatSize(size),
+      sizeBytes: sizeNum || undefined,
       seeders: Number(getValue(fields.seeders)) || 0,
       leechers: Number(getValue(fields.leechers)) || 0,
+      grabs: getValue(fields.grabs) ? Number(getValue(fields.grabs)) : undefined,
       category: String(getValue(fields.category) || ""),
       uploadTime: String(getValue(fields.upload_time) || ""),
       downloadUrl: String(getValue(fields.download_url) || ""),
-      detailUrl: String(getValue(fields.detail_url) || "")
+      detailUrl: String(getValue(fields.detail_url) || ""),
+      posterUrl: getValue(fields.poster_url) ? String(getValue(fields.poster_url)) : undefined,
+      imdbUrl: getValue(fields.imdb_url) ? String(getValue(fields.imdb_url)) : undefined,
+      imdbRating: getValue(fields.imdb_rating) ? String(getValue(fields.imdb_rating)) : undefined,
+      doubanUrl: getValue(fields.douban_url) ? String(getValue(fields.douban_url)) : undefined,
+      doubanRating: getValue(fields.douban_rating) ? String(getValue(fields.douban_rating)) : undefined,
+      discount: getValue(fields.discount) ? String(getValue(fields.discount)) : undefined,
+      discountEndTime: getValue(fields.discount_end_time) ? String(getValue(fields.discount_end_time)) : undefined,
+      videoCodec: getValue(fields.video_codec) ? String(getValue(fields.video_codec)) : undefined,
+      audioCodec: getValue(fields.audio_codec) ? String(getValue(fields.audio_codec)) : undefined,
+      resolution: getValue(fields.resolution) ? String(getValue(fields.resolution)) : undefined,
+      source: getValue(fields.source) ? String(getValue(fields.source)) : undefined
     };
   }
 

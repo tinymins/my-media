@@ -56,19 +56,29 @@ export const PtTorrentSchema = z.object({
   title: z.string(),
   subtitle: z.string().optional(),
   category: z.string().optional(),
+  categoryName: z.string().optional(), // 分类名称
   detailsUrl: z.string().optional(),
   downloadUrl: z.string(),
   posterUrl: z.string().optional(),
   imdbId: z.string().optional(),
+  imdbRating: z.string().optional(),
+  doubanId: z.string().optional(),
+  doubanRating: z.string().optional(),
   size: z.string(),
   sizeBytes: z.number().optional(),
   seeders: z.number(),
   leechers: z.number(),
-  grabs: z.number().optional(),
+  grabs: z.number().optional(), // 完成次数
   uploadDate: z.string().optional(),
-  downloadVolumeFactor: z.number().optional(), // 下载折扣 0=免费
-  uploadVolumeFactor: z.number().optional(), // 上传折扣
-  tags: z.array(z.string()).optional() // 标签: 免费, 2x上传 等
+  downloadVolumeFactor: z.number().optional(), // 下载折扣 0=免费 0.5=50%
+  uploadVolumeFactor: z.number().optional(), // 上传折扣 2=2x上传
+  discountEndTime: z.string().optional(), // 折扣结束时间
+  // 媒体信息
+  videoCodec: z.string().optional(), // 视频编码: H.264, H.265, AV1
+  audioCodec: z.string().optional(), // 音频编码: AAC, DTS-HD MA, TrueHD
+  resolution: z.string().optional(), // 分辨率: 1080p, 2160p, 4K
+  source: z.string().optional(), // 来源: BluRay, WEB-DL, HDTV
+  tags: z.array(z.string()).optional() // 标签: 免费, 2x上传, HDR 等
 });
 
 export type PtTorrent = z.infer<typeof PtTorrentSchema>;

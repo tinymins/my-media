@@ -33,18 +33,31 @@ api_search:
   body_template:
     keyword: "{{keyword}}"
     pageNumber: 1
-    pageSize: 50
+    pageSize: 100
   data_path: data
   list_path: data
   fields:
     id: id
     title: name
+    subtitle: smallDescr
     size: size
     seeders: status.seeders
     leechers: status.leechers
+    grabs: status.timesCompleted
     category: category
     upload_time: createdDate
     detail_url: id
+    poster_url: imageList.0
+    imdb_url: imdb
+    imdb_rating: imdbRating
+    douban_url: douban
+    douban_rating: doubanRating
+    discount: status.discount
+    discount_end_time: status.discountEndTime
+    video_codec: videoCodec
+    audio_codec: audioCodec
+    resolution: standard
+    source: source
 
 login:
   test:

@@ -15,7 +15,6 @@ export class SearchService {
    */
   async search(userId: string, keyword: string): Promise<SearchResult> {
     const startTime = Date.now();
-    console.log(`[SearchService] Starting search for: "${keyword}"`);
 
     // 并行搜索所有来源
     const [ptResults, mediaResults, tmdbResults] = await Promise.all([
@@ -25,7 +24,6 @@ export class SearchService {
     ]);
 
     const timeTaken = Date.now() - startTime;
-    console.log(`[SearchService] Search completed in ${timeTaken}ms, PT: ${ptResults.length}, Media: ${mediaResults.length}, TMDB: ${tmdbResults.length}`);
 
     return {
       keyword,
@@ -40,15 +38,11 @@ export class SearchService {
    * 搜索 PT 站点
    */
   async searchPtSites(userId: string, keyword: string): Promise<PtTorrent[]> {
-    console.log(`[SearchService] Searching PT sites for: "${keyword}"`);
-
     // 获取启用的 PT 站点
     const sites = await db
       .select()
       .from(ptSites)
       .where(eq(ptSites.isEnabled, true));
-
-    console.log(`[SearchService] Found ${sites.length} enabled PT sites`);
 
     if (sites.length === 0) {
       return [];
@@ -70,31 +64,141 @@ export class SearchService {
 
         // 搜索
         const results = await client.search(keyword);
-        console.log(`[SearchService] Site ${site.name} returned ${results.length} results`);
 
         // 转换为 PtTorrent 格式
         for (const result of results) {
+          // 解析折扣信息
+          const { downloadVolumeFactor, uploadVolumeFactor } = this.parseDiscount(result.discount);
+
           allResults.push({
             id: result.id,
             siteId: site.siteId,
             siteName: site.name,
             title: result.title,
+            subtitle: result.subtitle,
             size: result.size,
+            sizeBytes: result.sizeBytes,
             seeders: result.seeders,
             leechers: result.leechers,
+            grabs: result.grabs,
             category: result.category || undefined,
             uploadDate: result.uploadTime || undefined,
             downloadUrl: result.downloadUrl || "",
-            detailsUrl: result.detailUrl || undefined
+            detailsUrl: result.detailUrl ? `https://kp.m-team.cc/detail/${result.detailUrl}` : undefined,
+            posterUrl: result.posterUrl,
+            imdbId: result.imdbUrl ? this.extractImdbId(result.imdbUrl) : undefined,
+            imdbRating: result.imdbRating,
+            doubanId: result.doubanUrl ? this.extractDoubanId(result.doubanUrl) : undefined,
+            doubanRating: result.doubanRating,
+            downloadVolumeFactor,
+            uploadVolumeFactor,
+            discountEndTime: result.discountEndTime,
+            videoCodec: this.mapVideoCodec(result.videoCodec),
+            audioCodec: this.mapAudioCodec(result.audioCodec),
+            resolution: this.mapResolution(result.resolution),
+            source: result.source
           });
         }
       } catch (error) {
-        console.error(`[SearchService] Failed to search site ${site.name}:`, error);
+        // 单个站点搜索失败不影响其他站点
       }
     }
 
-    console.log(`[SearchService] Total PT results: ${allResults.length}`);
     return allResults;
+  }
+
+  /**
+   * 解析折扣信息
+   */
+  private parseDiscount(discount?: string): { downloadVolumeFactor?: number; uploadVolumeFactor?: number } {
+    if (!discount) return {};
+
+    switch (discount) {
+      case "FREE":
+        return { downloadVolumeFactor: 0 };
+      case "PERCENT_50":
+        return { downloadVolumeFactor: 0.5 };
+      case "PERCENT_70":
+        return { downloadVolumeFactor: 0.3 };
+      case "_2X_FREE":
+        return { downloadVolumeFactor: 0, uploadVolumeFactor: 2 };
+      case "_2X_PERCENT_50":
+        return { downloadVolumeFactor: 0.5, uploadVolumeFactor: 2 };
+      case "_2X":
+        return { uploadVolumeFactor: 2 };
+      default:
+        return {};
+    }
+  }
+
+  /**
+   * 从 IMDB URL 提取 ID
+   */
+  private extractImdbId(url: string): string | undefined {
+    const match = url.match(/tt\d+/);
+    return match ? match[0] : undefined;
+  }
+
+  /**
+   * 从豆瓣 URL 提取 ID
+   */
+  private extractDoubanId(url: string): string | undefined {
+    const match = url.match(/subject\/(\d+)/);
+    return match ? match[1] : undefined;
+  }
+
+  /**
+   * M-Team 视频编码映射
+   */
+  private mapVideoCodec(code?: string): string | undefined {
+    if (!code) return undefined;
+    const map: Record<string, string> = {
+      "1": "H.264",
+      "2": "VC-1",
+      "3": "MPEG-2",
+      "4": "XviD",
+      "5": "H.265",
+      "6": "AV1"
+    };
+    return map[code] || code;
+  }
+
+  /**
+   * M-Team 音频编码映射
+   */
+  private mapAudioCodec(code?: string): string | undefined {
+    if (!code) return undefined;
+    const map: Record<string, string> = {
+      "1": "DTS",
+      "2": "AC3",
+      "3": "AAC",
+      "4": "LPCM",
+      "5": "FLAC",
+      "6": "APE",
+      "7": "DTS-HD MA",
+      "8": "TrueHD",
+      "9": "TrueHD Atmos",
+      "10": "DTS-X",
+      "11": "DTS-HD MA",
+      "12": "Other"
+    };
+    return map[code] || code;
+  }
+
+  /**
+   * M-Team 分辨率映射
+   */
+  private mapResolution(code?: string): string | undefined {
+    if (!code) return undefined;
+    const map: Record<string, string> = {
+      "1": "1080p",
+      "2": "1080i",
+      "3": "720p",
+      "4": "SD",
+      "5": "4K",
+      "6": "2160p"
+    };
+    return map[code] || code;
   }
 
   /**
@@ -131,8 +235,7 @@ export class SearchService {
       const client = new TmdbClient({ apiKey: tmdbApiKey, language: "zh-CN" });
       const results = await client.searchMulti(keyword);
       return results;
-    } catch (error) {
-      console.error("TMDB search error:", error);
+    } catch {
       return [];
     }
   }
