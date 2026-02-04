@@ -1,12 +1,49 @@
-import { useState, useMemo } from "react";
-import { Button, Card, Col, Empty, Image, Input, Row, Select, Space, Spin, Tabs, Tag, Typography, message, Tooltip, Dropdown, Checkbox } from "antd";
-import { DownloadOutlined, PlayCircleOutlined, SearchOutlined, StarOutlined, FilterOutlined, ArrowUpOutlined, ArrowDownOutlined, CheckCircleOutlined, ClockCircleOutlined, LinkOutlined } from "@ant-design/icons";
+import { useState, useMemo, useEffect } from "react";
+import { Button, Card, Col, Empty, Image, Input, Row, Select, Space, Spin, Tabs, Tag, Typography, message, Tooltip, Dropdown, Checkbox, AutoComplete } from "antd";
+import { DownloadOutlined, PlayCircleOutlined, SearchOutlined, StarOutlined, FilterOutlined, ArrowUpOutlined, ArrowDownOutlined, CheckCircleOutlined, ClockCircleOutlined, LinkOutlined, CloseOutlined, HistoryOutlined } from "@ant-design/icons";
 import type { Lang } from "../../lib/types";
 import type { PtTorrent, MediaItem, TmdbMedia } from "@acme/types";
 import { trpc } from "../../lib/trpc";
 
 const { Text, Title, Paragraph } = Typography;
-const { Search } = Input;
+
+// 搜索历史存储 key
+const SEARCH_HISTORY_KEY = "search_history";
+const MAX_HISTORY_COUNT = 20;
+
+// 获取搜索历史
+const getSearchHistory = (): string[] => {
+  try {
+    const history = localStorage.getItem(SEARCH_HISTORY_KEY);
+    return history ? JSON.parse(history) : [];
+  } catch {
+    return [];
+  }
+};
+
+// 保存搜索历史
+const saveSearchHistory = (history: string[]) => {
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+};
+
+// 添加搜索历史
+const addSearchHistory = (keyword: string): string[] => {
+  const history = getSearchHistory();
+  // 移除重复项
+  const filtered = history.filter(h => h !== keyword);
+  // 添加到开头
+  const newHistory = [keyword, ...filtered].slice(0, MAX_HISTORY_COUNT);
+  saveSearchHistory(newHistory);
+  return newHistory;
+};
+
+// 删除搜索历史
+const removeSearchHistory = (keyword: string): string[] => {
+  const history = getSearchHistory();
+  const newHistory = history.filter(h => h !== keyword);
+  saveSearchHistory(newHistory);
+  return newHistory;
+};
 
 type SearchPageProps = {
   lang: Lang;
@@ -307,7 +344,14 @@ const TmdbCard = ({ media, onSearch }: { media: TmdbMedia; onSearch: (keyword: s
 
 export default function SearchPage({ lang }: SearchPageProps) {
   const [keyword, setKeyword] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [activeTab, setActiveTab] = useState("torrents");
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+
+  // 初始化搜索历史
+  useEffect(() => {
+    setSearchHistory(getSearchHistory());
+  }, []);
 
   // 筛选状态
   const [filters, setFilters] = useState({
@@ -370,11 +414,61 @@ export default function SearchPage({ lang }: SearchPageProps) {
     });
   }, [ptResults, filters]);
 
-  const handleSearch = async (value: string) => {
-    if (!value.trim()) return;
-    setKeyword(value);
-    searchMutation.mutate({ keyword: value });
+  const handleSearch = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setKeyword(trimmed);
+    setInputValue(trimmed);
+    // 保存到历史记录
+    const newHistory = addSearchHistory(trimmed);
+    setSearchHistory(newHistory);
+    searchMutation.mutate({ keyword: trimmed });
   };
+
+  const handleDeleteHistory = (e: React.MouseEvent, item: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const newHistory = removeSearchHistory(item);
+    setSearchHistory(newHistory);
+  };
+
+  const handleClearAllHistory = () => {
+    localStorage.removeItem(SEARCH_HISTORY_KEY);
+    setSearchHistory([]);
+  };
+
+  // 构建下拉选项
+  const historyOptions = searchHistory.map(item => ({
+    value: item,
+    label: (
+      <div className="flex items-center justify-between group">
+        <Space>
+          <HistoryOutlined className="text-gray-400" />
+          <span>{item}</span>
+        </Space>
+        <CloseOutlined
+          className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => handleDeleteHistory(e, item)}
+        />
+      </div>
+    ),
+  }));
+
+  // 自定义下拉框渲染，在底部添加清空按钮
+  const dropdownRender = (menu: React.ReactNode) => (
+    <>
+      {menu}
+      {searchHistory.length > 0 && (
+        <div
+          className="mt-1 pt-1 border-t border-gray-200/30 text-center text-gray-500 text-xs cursor-pointer hover:text-gray-300"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={handleClearAllHistory}
+        >
+          清空搜索历史
+        </div>
+      )}
+    </>
+  );
 
   const handleDownload = (torrent: PtTorrent) => {
     // TODO: 调用下载 API
@@ -543,18 +637,36 @@ export default function SearchPage({ lang }: SearchPageProps) {
           <Title level={4} className="text-center mb-4">
             聚合搜索
           </Title>
-          <Search
-            placeholder="输入电影、剧集名称搜索..."
-            allowClear
-            enterButton={
-              <Button type="primary" icon={<SearchOutlined />}>
-                搜索
-              </Button>
-            }
-            size="large"
-            onSearch={handleSearch}
-            loading={searchMutation.isPending}
-          />
+          <Space.Compact className="w-full">
+            <AutoComplete
+              className="flex-1"
+              size="large"
+              value={inputValue}
+              onChange={setInputValue}
+              options={historyOptions}
+              dropdownRender={dropdownRender}
+              onSelect={handleSearch}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSearch(inputValue);
+                }
+              }}
+              placeholder="输入电影、剧集名称搜索..."
+              allowClear
+              filterOption={(inputValue, option) =>
+                option?.value.toLowerCase().includes(inputValue.toLowerCase()) ?? false
+              }
+            />
+            <Button
+              type="primary"
+              size="large"
+              icon={<SearchOutlined />}
+              loading={searchMutation.isPending}
+              onClick={() => handleSearch(inputValue)}
+            >
+              搜索
+            </Button>
+          </Space.Compact>
           <Paragraph type="secondary" className="text-center mt-2 text-xs">
             同时搜索 PT站点、媒体库 和 TMDB 数据库
           </Paragraph>
