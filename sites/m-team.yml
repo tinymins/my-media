@@ -1,4 +1,4 @@
-id: mteam
+id: m-team
 name: 馒头
 domain: https://api.m-team.cc/
 encoding: UTF-8
@@ -6,6 +6,23 @@ config_url: https://mirror.ghproxy.com/https://raw.githubusercontent.com/htnanak
 allow_auth_type:
   - cookies
   - api_key
+
+# API 方式获取用户信息 (用于 api_key 认证)
+api_userinfo:
+  path: /api/member/profile
+  method: POST
+  headers:
+    x-api-key: "{{api_key}}"
+  data_path: data
+  fields:
+    uid: id
+    username: username
+    uploaded: memberCount.uploaded
+    downloaded: memberCount.downloaded
+    share_ratio: memberCount.shareRate
+    seeding: memberCount.seeding
+    leeching: memberCount.leeching
+    bonus: memberCount.bonus
 
 login:
   test:

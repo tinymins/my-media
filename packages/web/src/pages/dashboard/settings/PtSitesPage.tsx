@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { Button, Card, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useState, useEffect } from "react";
+import { Button, Card, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography, Tooltip } from "antd";
+import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined } from "@ant-design/icons";
 import { useMessage } from "../../../hooks";
 import { trpc } from "../../../lib/trpc";
-import type { PtSite } from "@acme/types";
+import type { PtSite, PtSiteStatus } from "@acme/types";
 
 const { Text } = Typography;
 
@@ -12,10 +12,40 @@ export default function PtSitesPage() {
   const [form] = Form.useForm();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSite, setEditingSite] = useState<PtSite | null>(null);
+  const [statusMap, setStatusMap] = useState<Record<string, PtSiteStatus>>({});
+  const [loadingStatus, setLoadingStatus] = useState(false);
   const utils = trpc.useUtils();
 
   // Queries
   const sitesQuery = trpc.ptSite.list.useQuery();
+  const availableSitesQuery = trpc.ptSite.getAvailableSites.useQuery();
+  const statusQuery = trpc.ptSite.listWithStatus.useQuery(undefined, {
+    enabled: false, // 手动触发
+  });
+
+  // 加载站点状态
+  const loadStatus = async () => {
+    setLoadingStatus(true);
+    try {
+      const result = await statusQuery.refetch();
+      if (result.data) {
+        const map: Record<string, PtSiteStatus> = {};
+        for (const status of result.data) {
+          map[status.id] = status;
+        }
+        setStatusMap(map);
+      }
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
+  // 首次加载时获取状态
+  useEffect(() => {
+    if (sitesQuery.data && sitesQuery.data.length > 0) {
+      loadStatus();
+    }
+  }, [sitesQuery.data?.length]);
 
   // Mutations
   const createMutation = trpc.ptSite.create.useMutation({
@@ -24,6 +54,7 @@ export default function PtSitesPage() {
       setModalOpen(false);
       form.resetFields();
       utils.ptSite.list.invalidate();
+      loadStatus();
     },
     onError: (error) => {
       message.error(error.message || "添加失败");
@@ -37,6 +68,7 @@ export default function PtSitesPage() {
       setEditingSite(null);
       form.resetFields();
       utils.ptSite.list.invalidate();
+      loadStatus();
     },
     onError: (error) => {
       message.error(error.message || "更新失败");
@@ -56,6 +88,7 @@ export default function PtSitesPage() {
   const toggleMutation = trpc.ptSite.toggleEnabled.useMutation({
     onSuccess: () => {
       utils.ptSite.list.invalidate();
+      loadStatus();
     },
     onError: (error) => {
       message.error(error.message || "操作失败");
@@ -72,7 +105,6 @@ export default function PtSitesPage() {
         authType: site.authType,
         cookies: site.cookies,
         apiKey: site.apiKey,
-        configUrl: site.configUrl,
         isEnabled: site.isEnabled
       });
     } else {
@@ -85,10 +117,17 @@ export default function PtSitesPage() {
 
   const handleSubmit = async () => {
     const values = await form.validateFields();
+    // 清理空字符串，转为 null
+    const cleanedValues = {
+      ...values,
+      domain: values.domain || null,
+      cookies: values.cookies || null,
+      apiKey: values.apiKey || null
+    };
     if (editingSite) {
-      await updateMutation.mutateAsync({ id: editingSite.id, ...values });
+      await updateMutation.mutateAsync({ id: editingSite.id, ...cleanedValues });
     } else {
-      await createMutation.mutateAsync(values);
+      await createMutation.mutateAsync(cleanedValues);
     }
   };
 
@@ -105,51 +144,97 @@ export default function PtSitesPage() {
 
   const columns = [
     {
-      title: "站点名称",
+      title: "站点",
       dataIndex: "name",
       key: "name",
-      render: (name: string, record: PtSite) => (
-        <Space>
-          <Text strong>{name}</Text>
-          <Text type="secondary">({record.siteId})</Text>
-        </Space>
-      )
+      width: 180,
+      render: (name: string, record: PtSite) => {
+        const status = statusMap[record.id];
+        return (
+          <Space direction="vertical" size={0}>
+            <a href={record.domain} target="_blank" rel="noopener noreferrer">
+              <Text strong>{name}</Text>
+            </a>
+            {status?.userInfo?.username && (
+              <Text type="secondary" className="text-xs">{status.userInfo.username}</Text>
+            )}
+          </Space>
+        );
+      }
     },
     {
-      title: "域名",
-      dataIndex: "domain",
-      key: "domain",
-      render: (domain: string) => (
-        <a href={domain} target="_blank" rel="noopener noreferrer">
-          {domain}
-        </a>
-      )
+      title: "分享率",
+      key: "shareRatio",
+      width: 100,
+      align: "center" as const,
+      render: (_: unknown, record: PtSite) => {
+        const status = statusMap[record.id];
+        if (!status?.userInfo?.shareRatio) return <Text type="secondary">-</Text>;
+        const ratio = parseFloat(status.userInfo.shareRatio);
+        return (
+          <Text type={ratio >= 1 ? "success" : ratio >= 0.5 ? "warning" : "danger"}>
+            {status.userInfo.shareRatio}
+          </Text>
+        );
+      }
     },
     {
-      title: "认证方式",
-      dataIndex: "authType",
-      key: "authType",
-      render: (authType: string) => (
-        <Tag color={authType === "cookies" ? "blue" : "green"}>
-          {authType === "cookies" ? "Cookies" : "API Key"}
-        </Tag>
-      )
+      title: "上传量",
+      key: "uploaded",
+      width: 100,
+      align: "right" as const,
+      render: (_: unknown, record: PtSite) => {
+        const status = statusMap[record.id];
+        return status?.userInfo?.uploaded || <Text type="secondary">-</Text>;
+      }
+    },
+    {
+      title: "下载量",
+      key: "downloaded",
+      width: 100,
+      align: "right" as const,
+      render: (_: unknown, record: PtSite) => {
+        const status = statusMap[record.id];
+        return status?.userInfo?.downloaded || <Text type="secondary">-</Text>;
+      }
     },
     {
       title: "状态",
-      dataIndex: "isEnabled",
-      key: "isEnabled",
-      render: (enabled: boolean, record: PtSite) => (
-        <Switch
-          checked={enabled}
-          onChange={() => toggleMutation.mutate({ id: record.id })}
-          loading={toggleMutation.isPending}
-        />
-      )
+      key: "status",
+      width: 80,
+      align: "center" as const,
+      render: (_: unknown, record: PtSite) => {
+        if (!record.isEnabled) {
+          return <Tag>已禁用</Tag>;
+        }
+        const status = statusMap[record.id];
+        if (loadingStatus && !status) {
+          return <SyncOutlined spin />;
+        }
+        if (status?.isLoggedIn) {
+          return <Tag icon={<CheckCircleOutlined />} color="success">可用</Tag>;
+        }
+        return (
+          <Tooltip title={status?.errorMessage || "未连接"}>
+            <Tag icon={<CloseCircleOutlined />} color="error">异常</Tag>
+          </Tooltip>
+        );
+      }
+    },
+    {
+      title: "做种",
+      key: "seeding",
+      width: 60,
+      align: "center" as const,
+      render: (_: unknown, record: PtSite) => {
+        const status = statusMap[record.id];
+        return status?.userInfo?.seeding ?? <Text type="secondary">-</Text>;
+      }
     },
     {
       title: "操作",
       key: "actions",
+      width: 100,
       render: (_: unknown, record: PtSite) => (
         <Space>
           <Button
@@ -171,15 +256,15 @@ export default function PtSitesPage() {
   return (
     <div className="p-6">
       <Card
-        title="PT/BT 站点管理"
+        title="全部站点"
         extra={
           <Space>
             <Button
-              icon={<ReloadOutlined />}
-              onClick={() => sitesQuery.refetch()}
-              loading={sitesQuery.isRefetching}
+              icon={<SyncOutlined spin={loadingStatus} />}
+              onClick={loadStatus}
+              loading={loadingStatus}
             >
-              刷新
+              刷新状态
             </Button>
             <Button
               type="primary"
@@ -214,29 +299,44 @@ export default function PtSitesPage() {
       >
         <Form form={form} layout="vertical" className="mt-4">
           <Form.Item
+            name="siteId"
+            label="选择站点"
+            rules={[{ required: true, message: "请选择站点" }]}
+            extra="从配置目录加载的可用站点（站点标识需与配置文件 id 一致）"
+          >
+            <Select
+              placeholder="请选择站点"
+              onChange={(value) => {
+                const site = availableSitesQuery.data?.find(s => s.id === value);
+                if (site) {
+                  form.setFieldsValue({
+                    name: site.name,
+                    domain: site.domain,
+                    authType: site.allowAuthType[0] || "cookies"
+                  });
+                }
+              }}
+            >
+              {availableSitesQuery.data?.map(site => (
+                <Select.Option key={site.id} value={site.id}>
+                  {site.name} ({site.id})
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
             name="name"
-            label="站点名称"
+            label="显示名称"
             rules={[{ required: true, message: "请输入站点名称" }]}
           >
             <Input placeholder="如：馒头" />
           </Form.Item>
 
           <Form.Item
-            name="siteId"
-            label="站点标识"
-            rules={[{ required: true, message: "请输入站点标识" }]}
-            extra="唯一标识符，用于识别站点配置文件"
-          >
-            <Input placeholder="如：mteam" disabled={!!editingSite} />
-          </Form.Item>
-
-          <Form.Item
             name="domain"
             label="站点域名"
-            rules={[
-              { required: true, message: "请输入站点域名" },
-              { type: "url", message: "请输入有效的 URL" }
-            ]}
+            extra="可自动从配置文件读取"
           >
             <Input placeholder="如：https://api.m-team.cc/" />
           </Form.Item>
@@ -275,14 +375,6 @@ export default function PtSitesPage() {
                 </Form.Item>
               )
             }
-          </Form.Item>
-
-          <Form.Item
-            name="configUrl"
-            label="配置文件 URL"
-            extra="远程配置文件地址，用于自动更新站点解析规则"
-          >
-            <Input placeholder="https://example.com/config/mteam.yml" />
           </Form.Item>
 
           <Form.Item name="isEnabled" label="启用状态" valuePropName="checked">

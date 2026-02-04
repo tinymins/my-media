@@ -2,7 +2,8 @@ import { z } from "zod";
 import {
   PtSiteSchema,
   CreatePtSiteInputSchema,
-  UpdatePtSiteInputSchema
+  UpdatePtSiteInputSchema,
+  PtSiteStatusSchema
 } from "@acme/types";
 import { Router, Query, Mutation, UseMiddlewares } from "../../trpc/decorators";
 import { requireUser, requireAdmin } from "../../trpc/middlewares";
@@ -10,12 +11,59 @@ import { ptSiteService, toPtSiteOutput } from "./pt-site.service";
 
 @Router({ alias: "ptSite" })
 export class PtSiteRouter {
+  // 获取可用的站点配置列表（从本地配置目录）
+  @Query({
+    output: z.array(z.object({
+      id: z.string(),
+      name: z.string(),
+      domain: z.string(),
+      allowAuthType: z.array(z.enum(["cookies", "api_key"]))
+    }))
+  })
+  @UseMiddlewares(requireUser)
+  async getAvailableSites() {
+    const configs = ptSiteService.getAvailableSites();
+    return configs.map(c => ({
+      id: c.id,
+      name: c.name,
+      domain: c.domain,
+      allowAuthType: c.allow_auth_type
+    }));
+  }
+
   // 获取所有 PT 站点列表
   @Query({ output: z.array(PtSiteSchema) })
   @UseMiddlewares(requireUser)
   async list() {
     const sites = await ptSiteService.list();
     return sites.map(toPtSiteOutput);
+  }
+
+  // 获取所有站点状态（包含用户信息）
+  @Query({ output: z.array(PtSiteStatusSchema) })
+  @UseMiddlewares(requireUser)
+  async listWithStatus() {
+    return await ptSiteService.getAllStatus();
+  }
+
+  // 获取单个站点状态
+  @Query({
+    input: z.object({ id: z.string() }),
+    output: PtSiteStatusSchema
+  })
+  @UseMiddlewares(requireUser)
+  async getStatus(input: { id: string }) {
+    return await ptSiteService.getSiteStatus(input.id);
+  }
+
+  // 测试站点连接
+  @Mutation({
+    input: z.object({ id: z.string() }),
+    output: z.object({ success: z.boolean(), message: z.string() })
+  })
+  @UseMiddlewares(requireUser)
+  async testConnection(input: { id: string }) {
+    return await ptSiteService.testConnection(input.id);
   }
 
   // 获取单个 PT 站点详情
