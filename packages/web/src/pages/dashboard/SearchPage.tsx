@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Button, Card, Col, Empty, Image, Input, Row, Space, Spin, Tabs, Tag, Typography } from "antd";
+import { Button, Card, Col, Empty, Image, Input, Row, Space, Spin, Tabs, Tag, Typography, message } from "antd";
 import { DownloadOutlined, PlayCircleOutlined, SearchOutlined, StarOutlined } from "@ant-design/icons";
 import type { Lang } from "../../lib/types";
 import type { PtTorrent, MediaItem, TmdbMedia } from "@acme/types";
+import { trpc } from "../../lib/trpc";
 
 const { Text, Title, Paragraph } = Typography;
 const { Search } = Input;
@@ -173,29 +174,31 @@ const TmdbCard = ({ media, onSearch }: { media: TmdbMedia; onSearch: (keyword: s
 
 export default function SearchPage({ lang }: SearchPageProps) {
   const [keyword, setKeyword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("torrents");
 
-  // Mock data - 实际应调用 tRPC API
-  const [ptResults] = useState<PtTorrent[]>([]);
-  const [mediaResults] = useState<MediaItem[]>([]);
-  const [tmdbResults] = useState<TmdbMedia[]>([]);
+  // 搜索结果状态
+  const [ptResults, setPtResults] = useState<PtTorrent[]>([]);
+  const [mediaResults, setMediaResults] = useState<MediaItem[]>([]);
+  const [tmdbResults, setTmdbResults] = useState<TmdbMedia[]>([]);
+
+  // 搜索 mutation
+  const searchMutation = trpc.search.search.useMutation({
+    onSuccess: (result) => {
+      setPtResults(result.ptResults);
+      setMediaResults(result.mediaResults);
+      setTmdbResults(result.tmdbResults);
+      console.log("[SearchPage] Search results:", result);
+    },
+    onError: (error) => {
+      console.error("[SearchPage] Search failed:", error);
+      message.error("搜索失败，请稍后重试");
+    }
+  });
 
   const handleSearch = async (value: string) => {
     if (!value.trim()) return;
-
     setKeyword(value);
-    setLoading(true);
-
-    // TODO: 调用 search API
-    // const result = await trpc.search.search.mutate({ keyword: value });
-    // setPtResults(result.ptResults);
-    // setMediaResults(result.mediaResults);
-    // setTmdbResults(result.tmdbResults);
-
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    searchMutation.mutate({ keyword: value });
   };
 
   const handleDownload = (torrent: PtTorrent) => {
@@ -204,7 +207,7 @@ export default function SearchPage({ lang }: SearchPageProps) {
   };
 
   const renderContent = () => {
-    if (loading) {
+    if (searchMutation.isPending) {
       return (
         <div className="flex justify-center items-center py-20">
           <Spin size="large" tip="搜索中..." />
@@ -295,7 +298,7 @@ export default function SearchPage({ lang }: SearchPageProps) {
             }
             size="large"
             onSearch={handleSearch}
-            loading={loading}
+            loading={searchMutation.isPending}
           />
           <Paragraph type="secondary" className="text-center mt-2 text-xs">
             同时搜索 PT站点、媒体库 和 TMDB 数据库

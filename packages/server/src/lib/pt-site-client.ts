@@ -42,7 +42,22 @@ export interface SiteConfig {
     fields: Record<string, string>;
   };
 
-  // 搜索配置
+  // API 搜索配置 (用于 API Key 认证的站点)
+  api_search?: {
+    path: string;
+    method?: "GET" | "POST";
+    headers?: Record<string, string>;
+    // 搜索请求体模板，{{keyword}} 会被替换
+    body_template?: Record<string, unknown>;
+    // 响应数据路径
+    data_path?: string;
+    // 种子列表路径（从 data 中取）
+    list_path?: string;
+    // 字段映射
+    fields: Record<string, string>;
+  };
+
+  // 搜索配置 (HTML 解析方式)
   search?: {
     paths: Array<{
       path: string;
@@ -86,6 +101,20 @@ export interface PtSiteUserInfo {
   leeching: number;
   vipGroup?: string;
   bonus?: string;
+}
+
+// ============ 搜索结果类型 ============
+
+export interface PtSearchResult {
+  id: string;
+  title: string;
+  size: string;
+  seeders: number;
+  leechers: number;
+  category?: string;
+  uploadTime?: string;
+  downloadUrl?: string;
+  detailUrl?: string;
 }
 
 // ============ 客户端实现 ============
@@ -159,6 +188,128 @@ export class PtSiteClient {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * 搜索种子
+   */
+  async search(keyword: string): Promise<PtSearchResult[]> {
+    console.log(`[PtSiteClient] Searching for: "${keyword}" on ${this.config.name}`);
+
+    // 优先使用 API 方式
+    if (this.apiKey && this.config.api_search) {
+      return this.searchByApi(keyword);
+    }
+
+    // TODO: HTML 解析方式搜索
+    console.log(`[PtSiteClient] No api_search config for ${this.config.name}, skipping`);
+    return [];
+  }
+
+  /**
+   * 通过 API 搜索
+   */
+  private async searchByApi(keyword: string): Promise<PtSearchResult[]> {
+    const searchConfig = this.config.api_search;
+    if (!searchConfig) return [];
+
+    try {
+      const url = this.buildUrl(searchConfig.path);
+
+      // 构建请求头
+      const headers: Record<string, string> = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Content-Type": "application/json"
+      };
+
+      if (searchConfig.headers) {
+        for (const [key, value] of Object.entries(searchConfig.headers)) {
+          headers[key] = this.replaceTemplateVars(value);
+        }
+      }
+
+      // 构建请求体，替换 {{keyword}}
+      let body = {};
+      if (searchConfig.body_template) {
+        body = JSON.parse(
+          JSON.stringify(searchConfig.body_template).replace(/\{\{keyword\}\}/g, keyword)
+        );
+      }
+
+      console.log(`[PtSiteClient] API search request: POST ${url}`);
+      console.log(`[PtSiteClient] API search body:`, JSON.stringify(body));
+
+      const response = await fetch(url, {
+        method: searchConfig.method || "POST",
+        headers,
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        console.error(`[PtSiteClient] Search API failed: ${response.status}`);
+        return [];
+      }
+
+      const json = await response.json();
+      console.log(`[PtSiteClient] Search API response code: ${json.code}, message: ${json.message}`);
+
+      if (json.code && json.code !== "0" && json.code !== 0) {
+        console.error(`[PtSiteClient] Search API error: ${json.message}`);
+        return [];
+      }
+
+      // 获取数据
+      let data = json;
+      if (searchConfig.data_path) {
+        data = this.getNestedValue(json, searchConfig.data_path);
+      }
+
+      // 获取列表
+      let list = data;
+      if (searchConfig.list_path) {
+        list = this.getNestedValue(data, searchConfig.list_path);
+      }
+
+      if (!Array.isArray(list)) {
+        console.error(`[PtSiteClient] Search result is not an array`);
+        return [];
+      }
+
+      console.log(`[PtSiteClient] Found ${list.length} torrents`);
+
+      // 映射结果
+      return list.map((item: Record<string, unknown>) => this.mapSearchResult(item, searchConfig.fields));
+    } catch (error) {
+      console.error(`[PtSiteClient] Search error:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * 映射搜索结果
+   */
+  private mapSearchResult(
+    item: Record<string, unknown>,
+    fields: Record<string, string>
+  ): PtSearchResult {
+    const getValue = (path: string | undefined): unknown => {
+      if (!path) return undefined;
+      return this.getNestedValue(item, path);
+    };
+
+    const size = getValue(fields.size);
+
+    return {
+      id: String(getValue(fields.id) || ""),
+      title: String(getValue(fields.title) || ""),
+      size: this.formatSize(size),
+      seeders: Number(getValue(fields.seeders)) || 0,
+      leechers: Number(getValue(fields.leechers)) || 0,
+      category: String(getValue(fields.category) || ""),
+      uploadTime: String(getValue(fields.upload_time) || ""),
+      downloadUrl: String(getValue(fields.download_url) || ""),
+      detailUrl: String(getValue(fields.detail_url) || "")
+    };
   }
 
   /**

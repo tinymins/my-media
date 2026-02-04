@@ -24,6 +24,28 @@ api_userinfo:
     leeching: memberCount.leeching
     bonus: memberCount.bonus
 
+# API 搜索配置
+api_search:
+  path: /api/torrent/search
+  method: POST
+  headers:
+    x-api-key: "{{api_key}}"
+  body_template:
+    keyword: "{{keyword}}"
+    pageNumber: 1
+    pageSize: 50
+  data_path: data
+  list_path: data
+  fields:
+    id: id
+    title: name
+    size: size
+    seeders: status.seeders
+    leechers: status.leechers
+    category: category
+    upload_time: createdDate
+    detail_url: id
+
 login:
   test:
     selector: a[href="logout.php"]
