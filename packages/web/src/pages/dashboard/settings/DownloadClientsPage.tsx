@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Card, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography } from "antd";
-import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, StarOutlined, StarFilled } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined, StarOutlined, StarFilled } from "@ant-design/icons";
+import TorrentListModal from "../../../components/dashboard/TorrentListModal";
 import { useMessage } from "../../../hooks";
 import { trpc } from "../../../lib/trpc";
 import type { DownloadClient, DownloadClientType } from "@acme/types";
@@ -24,6 +25,7 @@ export default function DownloadClientsPage() {
   const [form] = Form.useForm();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<DownloadClient | null>(null);
+  const [viewingClient, setViewingClient] = useState<DownloadClient | null>(null);
   const utils = trpc.useUtils();
 
   // Queries
@@ -178,6 +180,12 @@ export default function DownloadClientsPage() {
       key: "actions",
       render: (_: unknown, record: DownloadClient) => (
         <Space>
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            onClick={() => setViewingClient(record)}
+            title="查看种子"
+          />
           {!record.isDefault && (
             <Button
               type="text"
@@ -313,6 +321,15 @@ export default function DownloadClientsPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* 种子列表弹窗 */}
+      {viewingClient && (
+        <TorrentListModal
+          open={!!viewingClient}
+          onClose={() => setViewingClient(null)}
+          client={viewingClient}
+        />
+      )}
     </div>
   );
 }
